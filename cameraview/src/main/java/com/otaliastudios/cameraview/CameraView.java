@@ -2291,5 +2291,10 @@ public class CameraView extends FrameLayout implements LifecycleObserver {
 
     }
 
+    public void setCameraFocus(float value){
+        mCameraEngine.setFocusValue(value);
+        mCameraEngine.start();
+    }
+
     //endregion
 }
