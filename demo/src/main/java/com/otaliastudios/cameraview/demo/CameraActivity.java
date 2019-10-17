@@ -17,9 +17,11 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
+import android.widget.SeekBar;
 import android.widget.Toast;
 
 import com.otaliastudios.cameraview.CameraException;
@@ -56,6 +58,7 @@ public class CameraActivity extends AppCompatActivity implements View.OnClickLis
 
     private int mCurrentFilter = 0;
     private final Filters[] mAllFilters = Filters.values();
+    private SeekBar seekBar;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -66,6 +69,7 @@ public class CameraActivity extends AppCompatActivity implements View.OnClickLis
         camera = findViewById(R.id.camera);
         camera.setLifecycleOwner(this);
         camera.addCameraListener(new Listener());
+        camera.setZoom(.3f);
 
         if (USE_FRAME_PROCESSOR) {
             camera.addFrameProcessor(new FrameProcessor() {
@@ -169,6 +173,29 @@ public class CameraActivity extends AppCompatActivity implements View.OnClickLis
             }
         });
         animator.start();
+
+        camera.setAutoFocusResetDelay(0);
+        camera.startAutoFocus(camera.getWidth()/2,camera.getHeight()/2);
+        seekBar = findViewById(R.id.seekBar);
+        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                Log.e("CameraActivity", "progress:"+progress);
+
+                camera.setCameraFocus((float)progress);
+
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+                Log.e("CameraActivity", "onStartTrackingTouch:"+seekBar.getProgress());
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                Log.e("CameraActivity", "onStopTrackingTouch:"+seekBar.getProgress());
+            }
+        });
     }
 
     private void message(@NonNull String content, boolean important) {

@@ -19,6 +19,7 @@ import android.location.Location;
 import android.media.Image;
 import android.media.ImageReader;
 import android.os.Build;
+import android.util.Log;
 import android.util.Pair;
 import android.util.Rational;
 import android.view.Surface;
@@ -113,6 +114,9 @@ public class Camera2Engine extends CameraEngine implements ImageReader.OnImageAv
     // Actions
     private final List<Action> mActions = new ArrayList<>();
     private MeterAction mMeterAction;
+
+    // Focus
+    private float focusValue = 0f;
 
     public Camera2Engine(Callback callback) {
         super(callback);
@@ -228,7 +232,7 @@ public class Camera2Engine extends CameraEngine implements ImageReader.OnImageAv
     /**
      * Applies the repeating request builder to the preview, assuming we actually have a preview
      * running. Can be called after changing parameters to the builder.
-     *
+     * <p>
      * To apply a new builder (for example switch between TEMPLATE_PREVIEW and TEMPLATE_RECORD)
      * it should be set before calling this method, for example by calling
      * {@link #createRepeatingRequestBuilder(int)}.
@@ -878,7 +882,7 @@ public class Camera2Engine extends CameraEngine implements ImageReader.OnImageAv
      * Video recorders might change the camera template to {@link CameraDevice#TEMPLATE_RECORD}.
      * After the video is taken, we should restore the template preview, which also means that
      * we'll remove any extra surface target that was added by the video recorder.
-     *
+     * <p>
      * This method avoids doing this twice by checking the request tag, as set by
      * the {@link #createRepeatingRequestBuilder(int)} method.
      */
@@ -928,35 +932,56 @@ public class Camera2Engine extends CameraEngine implements ImageReader.OnImageAv
         }
     }
 
+    @NonNull
+    @Override
+    protected void onFocusValueChange(float value) {
+        focusValue = value;
+        restart();
+    }
+
     @SuppressWarnings("WeakerAccess")
     protected void applyDefaultFocus(@NonNull CaptureRequest.Builder builder) {
         int[] modesArray = readCharacteristic(CameraCharacteristics.CONTROL_AF_AVAILABLE_MODES,
                 new int[]{});
         List<Integer> modes = new ArrayList<>();
-        for (int mode : modesArray) { modes.add(mode); }
-        if (getMode() == Mode.VIDEO &&
-                modes.contains(CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO)) {
-            builder.set(CaptureRequest.CONTROL_AF_MODE,
-                    CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO);
-            return;
+        for (int mode : modesArray) {
+            modes.add(mode);
         }
 
-        if (modes.contains(CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)) {
-            builder.set(CaptureRequest.CONTROL_AF_MODE,
-                    CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
-            return;
+//        if (getMode() == Mode.VIDEO &&
+//                modes.contains(CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO)) {
+//            builder.set(CaptureRequest.CONTROL_AF_MODE,
+//                    CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO);
+//            return;
+//        }
+//
+//        if (modes.contains(CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)) {
+//            builder.set(CaptureRequest.CONTROL_AF_MODE,
+//                    CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
+//            return;
+//        }
+//
+//        if (modes.contains(CaptureRequest.CONTROL_AF_MODE_AUTO)) {
+//            builder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_AUTO);
+//            return;
+//        }
+
+        float minimumLens = 0;
+
+        try {
+            minimumLens = mCameraCharacteristics.get(CameraCharacteristics.LENS_INFO_MINIMUM_FOCUS_DISTANCE);
+        } catch (NullPointerException e) {
+            e.printStackTrace();
         }
 
-        if (modes.contains(CaptureRequest.CONTROL_AF_MODE_AUTO)) {
-            builder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_AUTO);
-            return;
-        }
+        float num = (((float) focusValue) * minimumLens / 100);
 
+        Log.e("Camera2Engine", "applyDefaultFocus:1111");
         if (modes.contains(CaptureRequest.CONTROL_AF_MODE_OFF)) {
+            Log.e("Camera2Engine", ".CONTROL_AF_MODE_OFF:"+true);
+            Log.e("Camera2Engine", ".num:"+num);
             builder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_OFF);
-            builder.set(CaptureRequest.LENS_FOCUS_DISTANCE, 0F);
-            //noinspection UnnecessaryReturnStatement
-            return;
+            builder.set(CaptureRequest.LENS_FOCUS_DISTANCE, num);
         }
     }
 
@@ -973,7 +998,9 @@ public class Camera2Engine extends CameraEngine implements ImageReader.OnImageAv
         int[] modesArray = readCharacteristic(CameraCharacteristics.CONTROL_AF_AVAILABLE_MODES,
                 new int[]{});
         List<Integer> modes = new ArrayList<>();
-        for (int mode : modesArray) { modes.add(mode); }
+        for (int mode : modesArray) {
+            modes.add(mode);
+        }
         if (modes.contains(CaptureRequest.CONTROL_AF_MODE_AUTO)) {
             builder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_AUTO);
             return;
@@ -1033,14 +1060,14 @@ public class Camera2Engine extends CameraEngine implements ImageReader.OnImageAv
      * - {@link CaptureRequest#CONTROL_AE_MODE_ON}
      * - {@link CaptureRequest#CONTROL_AE_MODE_ON_AUTO_FLASH}
      * - {@link CaptureRequest#CONTROL_AE_MODE_ON_ALWAYS_FLASH}
-     *
+     * <p>
      * The API offers a high level control through {@link CaptureRequest#CONTROL_AE_MODE},
      * which is what the mapper looks at. It will trigger (if specified) flash only for
      * still captures which is exactly what we want.
-     *
+     * <p>
      * However, we set CONTROL_AE_MODE to ON/OFF (depending
      * on which is available) with both {@link Flash#OFF} and {@link Flash#TORCH}.
-     *
+     * <p>
      * When CONTROL_AE_MODE is ON or OFF, the low level control, called
      * {@link CaptureRequest#FLASH_MODE}, becomes effective, and that's where we can actually
      * distinguish between a turned off flash and a torch flash.
@@ -1052,7 +1079,9 @@ public class Camera2Engine extends CameraEngine implements ImageReader.OnImageAv
             int[] availableAeModesArray = readCharacteristic(
                     CameraCharacteristics.CONTROL_AE_AVAILABLE_MODES, new int[]{});
             List<Integer> availableAeModes = new ArrayList<>();
-            for (int mode : availableAeModesArray) { availableAeModes.add(mode); }
+            for (int mode : availableAeModesArray) {
+                availableAeModes.add(mode);
+            }
 
             List<Pair<Integer, Integer>> pairs = mMapper.mapFlash(mFlash);
             for (Pair<Integer, Integer> pair : pairs) {
@@ -1271,7 +1300,8 @@ public class Camera2Engine extends CameraEngine implements ImageReader.OnImageAv
         Image image = null;
         try {
             image = reader.acquireLatestImage();
-        } catch (IllegalStateException ignore) { }
+        } catch (IllegalStateException ignore) {
+        }
         if (image == null) {
             LOG.w("onImageAvailable", "we have a byte buffer but no Image!");
             getFrameManager().onBufferUnused(data);

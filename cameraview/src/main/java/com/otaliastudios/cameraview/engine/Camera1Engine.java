@@ -832,6 +832,12 @@ public class Camera1Engine extends CameraEngine implements
         }
     };
 
+    @NonNull
+    @Override
+    protected void onFocusValueChange(float value) {
+        //do nothing for camera1
+    }
+
     //endregion
 }
 
