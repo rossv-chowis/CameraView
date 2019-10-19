@@ -117,6 +117,7 @@ public class Camera2Engine extends CameraEngine implements ImageReader.OnImageAv
 
     // Focus
     private float focusValue = 0f;
+    private int focusMode = 2; // 1 manual | 2 auto
 
     public Camera2Engine(Callback callback) {
         super(callback);
@@ -926,8 +927,8 @@ public class Camera2Engine extends CameraEngine implements ImageReader.OnImageAv
                     oldBuilder.get(CaptureRequest.CONTROL_AE_REGIONS));
             builder.set(CaptureRequest.CONTROL_AWB_REGIONS,
                     oldBuilder.get(CaptureRequest.CONTROL_AWB_REGIONS));
-            builder.set(CaptureRequest.CONTROL_AF_MODE,
-                    oldBuilder.get(CaptureRequest.CONTROL_AF_MODE));
+//            builder.set(CaptureRequest.CONTROL_AF_MODE,
+//                    oldBuilder.get(CaptureRequest.CONTROL_AF_MODE));
             // Do NOT copy exposure or focus triggers!
         }
     }
@@ -936,7 +937,32 @@ public class Camera2Engine extends CameraEngine implements ImageReader.OnImageAv
     @Override
     protected void onFocusValueChange(float value) {
         focusValue = value;
-        restart();
+
+        mHandler.run(new Runnable() {
+            @Override
+            public void run() {
+                if (getEngineState() == STATE_STARTED) {
+                    applyDefaultFocus(mRepeatingRequestBuilder);
+                    applyRepeatingRequestBuilder();
+                }
+            }
+        });
+    }
+
+    @NonNull
+    @Override
+    protected void onFocusModeChange(int value) {
+        focusMode = value;
+
+        mHandler.run(new Runnable() {
+            @Override
+            public void run() {
+                if (getEngineState() == STATE_STARTED) {
+                    applyDefaultFocus(mRepeatingRequestBuilder);
+                    applyRepeatingRequestBuilder();
+                }
+            }
+        });
     }
 
     @SuppressWarnings("WeakerAccess")
@@ -948,41 +974,43 @@ public class Camera2Engine extends CameraEngine implements ImageReader.OnImageAv
             modes.add(mode);
         }
 
-//        if (getMode() == Mode.VIDEO &&
-//                modes.contains(CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO)) {
-//            builder.set(CaptureRequest.CONTROL_AF_MODE,
-//                    CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO);
-//            return;
-//        }
-//
-//        if (modes.contains(CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)) {
-//            builder.set(CaptureRequest.CONTROL_AF_MODE,
-//                    CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
-//            return;
-//        }
-//
-//        if (modes.contains(CaptureRequest.CONTROL_AF_MODE_AUTO)) {
-//            builder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_AUTO);
-//            return;
-//        }
+        if (focusMode == 2) { // Auto focus
+            if (getMode() == Mode.VIDEO &&
+                    modes.contains(CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO)) {
+                builder.set(CaptureRequest.CONTROL_AF_MODE,
+                        CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO);
+                return;
+            }
 
-        float minimumLens = 0;
+            if (modes.contains(CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)) {
+                builder.set(CaptureRequest.CONTROL_AF_MODE,
+                        CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
+                return;
+            }
 
-        try {
-            minimumLens = mCameraCharacteristics.get(CameraCharacteristics.LENS_INFO_MINIMUM_FOCUS_DISTANCE);
-        } catch (NullPointerException e) {
-            e.printStackTrace();
+            if (modes.contains(CaptureRequest.CONTROL_AF_MODE_AUTO)) {
+                builder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_AUTO);
+                return;
+            }
+        } else { // Manual focus
+            float minimumLens = 0;
+
+            try {
+                minimumLens = mCameraCharacteristics.get(CameraCharacteristics.LENS_INFO_MINIMUM_FOCUS_DISTANCE);
+                Log.e("Camera2Engine", "minimumLens:" + minimumLens);
+            } catch (NullPointerException e) {
+                e.printStackTrace();
+            }
+
+            float num = (focusValue * minimumLens / 100);
+            if (modes.contains(CaptureRequest.CONTROL_AF_MODE_OFF)) {
+                builder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_OFF);
+                builder.set(CaptureRequest.LENS_FOCUS_DISTANCE, num);
+                return;
+            }
         }
 
-        float num = (((float) focusValue) * minimumLens / 100);
 
-        Log.e("Camera2Engine", "applyDefaultFocus:1111");
-        if (modes.contains(CaptureRequest.CONTROL_AF_MODE_OFF)) {
-            Log.e("Camera2Engine", ".CONTROL_AF_MODE_OFF:"+true);
-            Log.e("Camera2Engine", ".num:"+num);
-            builder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_OFF);
-            builder.set(CaptureRequest.LENS_FOCUS_DISTANCE, num);
-        }
     }
 
     /**

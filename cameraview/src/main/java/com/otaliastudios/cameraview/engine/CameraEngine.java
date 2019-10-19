@@ -435,6 +435,10 @@ public abstract class CameraEngine implements
         onFocusValueChange(value);
     }
 
+    public void setFocusMode(int mode) {
+        onFocusModeChange(mode);
+    }
+
     /**
      * Starts the engine.
      *
@@ -458,6 +462,10 @@ public abstract class CameraEngine implements
     @NonNull
     @EngineThread
     protected abstract void onFocusValueChange(float value);
+
+    @NonNull
+    @EngineThread
+    protected abstract void onFocusModeChange(int value);
 
     //endregion
 

@@ -21,6 +21,7 @@ import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
+import android.widget.Button;
 import android.widget.SeekBar;
 import android.widget.Toast;
 
@@ -59,6 +60,8 @@ public class CameraActivity extends AppCompatActivity implements View.OnClickLis
     private int mCurrentFilter = 0;
     private final Filters[] mAllFilters = Filters.values();
     private SeekBar seekBar;
+    private Button btnAuto;
+    private Button btnManual;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -174,16 +177,18 @@ public class CameraActivity extends AppCompatActivity implements View.OnClickLis
         });
         animator.start();
 
-        camera.setAutoFocusResetDelay(0);
-        camera.startAutoFocus(camera.getWidth()/2,camera.getHeight()/2);
+        // manual focus
+//        camera.setFocusMode(1);
+//        camera.setCameraFocus((float)10 * 10);
+//        camera.setAutoFocusResetDelay(0);
+//        camera.startAutoFocus(camera.getWidth()/2,camera.getHeight()/2);
+
         seekBar = findViewById(R.id.seekBar);
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 Log.e("CameraActivity", "progress:"+progress);
-
-                camera.setCameraFocus((float)progress);
-
+                camera.setCameraFocus((float)progress * 10);
             }
 
             @Override
@@ -194,6 +199,22 @@ public class CameraActivity extends AppCompatActivity implements View.OnClickLis
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
                 Log.e("CameraActivity", "onStopTrackingTouch:"+seekBar.getProgress());
+            }
+        });
+
+        btnAuto = findViewById(R.id.btnAuto);
+        btnAuto.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                camera.setFocusMode(2);
+            }
+        });
+
+        btnManual = findViewById(R.id.btnManual);
+        btnManual.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                camera.setFocusMode(1);
             }
         });
     }

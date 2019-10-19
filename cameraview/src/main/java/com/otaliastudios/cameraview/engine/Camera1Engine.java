@@ -838,6 +838,12 @@ public class Camera1Engine extends CameraEngine implements
         //do nothing for camera1
     }
 
+    @NonNull
+    @Override
+    protected void onFocusModeChange(int value) {
+        // do nothing for camera1
+    }
+
     //endregion
 }
 
