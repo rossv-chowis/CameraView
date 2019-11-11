@@ -975,42 +975,52 @@ public class Camera2Engine extends CameraEngine implements ImageReader.OnImageAv
         }
 
         if (focusMode == 2) { // Auto focus
-            if (getMode() == Mode.VIDEO &&
-                    modes.contains(CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO)) {
-                builder.set(CaptureRequest.CONTROL_AF_MODE,
-                        CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO);
-                return;
-            }
-
-            if (modes.contains(CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)) {
-                builder.set(CaptureRequest.CONTROL_AF_MODE,
-                        CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
-                return;
-            }
-
-            if (modes.contains(CaptureRequest.CONTROL_AF_MODE_AUTO)) {
-                builder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_AUTO);
-                return;
-            }
+            setAutoFocus(builder, modes);
         } else { // Manual focus
             float minimumLens = 0;
 
             try {
                 minimumLens = mCameraCharacteristics.get(CameraCharacteristics.LENS_INFO_MINIMUM_FOCUS_DISTANCE);
                 Log.e("Camera2Engine", "minimumLens:" + minimumLens);
+
+                float num = (focusValue * minimumLens / 100);
+                if (modes.contains(CaptureRequest.CONTROL_AF_MODE_OFF)) {
+                    Log.e("Camera2Engine", "set lens focus distance:" + num);
+                    builder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_OFF);
+                    builder.set(CaptureRequest.LENS_FOCUS_DISTANCE, num);
+                    return;
+                }
             } catch (NullPointerException e) {
                 e.printStackTrace();
+
+                Log.e("Camera2Engine", "Manual Focus not supported, revert to Auto Focus");
+                //manual focus not supported, revert to Auto Focus
+                setAutoFocus(builder, modes);
             }
 
-            float num = (focusValue * minimumLens / 100);
-            if (modes.contains(CaptureRequest.CONTROL_AF_MODE_OFF)) {
-                builder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_OFF);
-                builder.set(CaptureRequest.LENS_FOCUS_DISTANCE, num);
-                return;
-            }
         }
 
 
+    }
+
+    private void setAutoFocus(@NonNull CaptureRequest.Builder builder, List<Integer> modes) {
+        if (getMode() == Mode.VIDEO &&
+                modes.contains(CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO)) {
+            builder.set(CaptureRequest.CONTROL_AF_MODE,
+                    CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO);
+            return;
+        }
+
+        if (modes.contains(CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)) {
+            builder.set(CaptureRequest.CONTROL_AF_MODE,
+                    CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
+            return;
+        }
+
+        if (modes.contains(CaptureRequest.CONTROL_AF_MODE_AUTO)) {
+            builder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_AUTO);
+            return;
+        }
     }
 
     /**
