@@ -24,6 +24,7 @@ import android.util.Pair;
 import android.util.Rational;
 import android.view.Surface;
 import android.view.SurfaceHolder;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -535,6 +536,7 @@ public class Camera2Engine extends CameraEngine implements ImageReader.OnImageAv
                 public void onConfigureFailed(@NonNull CameraCaptureSession session) {
                     // This SHOULD be a library error so we throw a RuntimeException.
                     String message = LOG.e("onConfigureFailed! Session", session);
+                    Toast.makeText(mCallback.getContext(), message, Toast.LENGTH_LONG).show();
                     throw new RuntimeException(message);
                 }
             }, null);
